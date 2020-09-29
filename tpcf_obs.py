@@ -2,7 +2,7 @@ import numpy as np
 from glob import glob
 from halotools.mock_observables import wp
 
-def wp_from_box(G1,Lbox = 1024.,Nsigma = 25):
+def wp_from_box(G1,n_threads,Lbox = 1024.,Nsigma = 25):
     ## replace by real error estimation  #number of bins on rp log binned
     sini = 0.1
     sfini = 80.0
@@ -12,7 +12,7 @@ def wp_from_box(G1,Lbox = 1024.,Nsigma = 25):
     dpi = np.diff(pi)[0]
     s_l = np.log10(sigma[:-1]) + np.diff(np.log10(sigma))[0]/2.
     rp = 10**s_l
-    wp_obs = wp(G1,sigma,pi_max=pimax,num_threads=16,period=[Lbox,Lbox,Lbox])
+    wp_obs = wp(G1,sigma,pi_max=pimax,period=[Lbox,Lbox,Lbox],num_threads=n_threads)
     wp_true = wp_obs / rp
     
     return wp_true
