@@ -12,7 +12,7 @@ def wp_from_box(G1,n_threads,Lbox = 1024.,Nsigma = 25):
     dpi = np.diff(pi)[0]
     s_l = np.log10(sigma[:-1]) + np.diff(np.log10(sigma))[0]/2.
     rp = 10**s_l
-    wp_obs = wp(G1,sigma,pi_max=pimax,period=[Lbox,Lbox,Lbox],num_threads=n_threads)
+    wp_obs = wp(G1,sigma,pi_max=pimax,period=[Lbox,Lbox,Lbox],num_threads=n_threads,randoms=None)
     wp_true = wp_obs / rp
     
     return wp_true

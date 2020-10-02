@@ -15,7 +15,7 @@ B = sys.argv[2]
 
 A_n = 0.5
 A_wp = 0.5
-st = 2
+st = 1
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -92,9 +92,9 @@ def lnprob(theta,ydata=Y_data):
     return lp + lnlike(theta,ydata)
     
 
-prior_range = np.array([[12.0,14.3],
+prior_range = np.array([[12.0,14.0],
                         [13.0,15.0],
-                        [12.0,14.3],
+                        [12.0,14.0],
                         [0.3,0.9],
                         [0.5,1.3]])
 nwalkers = 10
@@ -113,10 +113,10 @@ p0 = [ np.random.uniform(low=p[0],high=p[1],size=nwalkers) for p in prior_range]
 #p0 = [ np.random.normal(i,i*0.05,size=10) for i in p]
 p0 = np.array(p0).T
 #save walkers initial state
-np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/walkers_p0/p0_'+str(nwalkers)+'walkers_set'+str(st)+'.ini',p0)
+#np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/walkers_p0/p0_'+str(nwalkers)+'walkers_set'+str(st)+'.ini',p0)
 
-burnin_it = 0
-prod_it = 1000
+burnin_it = 1
+prod_it = 5000
 #stretch_p = 2.0
 
 #filename = "/cosma7/data/dp004/dc-armi2/mcmc_runs/backends/mcmc_backend_stretch_lgprob_chain_"+str(nwalkers)+"wlk_"+str(burnin_it)+"burnin_"+str(prod_it)+"production_"+M+"_Box"+str(B)+".h5"
@@ -125,11 +125,13 @@ prod_it = 1000
     
 def main(p0,nwalkers,niter,ndim,lnprob,data):
     #print('Running mcmc...\n')
+    cov_vec =  np.array([0.01,0.01,0.01,1e-3,1e-3])
+    Cov = np.identity(ndim)*cov_vec
     with MPIPool() as pool:
         if not pool.is_master():
             pool.wait()
             sys.exit(0)
-        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,moves=emcee.moves.StretchMove(a=2.0), backend=None,pool=pool, args=np.array([Y_data]))
+        sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,moves=emcee.moves.GaussianMove(cov=Cov), backend=None,pool=pool, args=np.array([Y_data]))
 
         ##print("Running burn-in...")
         #p0, _, _ = sampler.run_mcmc(initial_state=p0, nsteps=niter[0],progress=True)

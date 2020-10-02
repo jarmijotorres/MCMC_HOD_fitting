@@ -5,7 +5,7 @@ def lnprob(x, mu, icov):
     diff = x-mu
     return -np.dot(diff,np.dot(icov,diff))/2.0
 
-ndim = 50
+ndim = 10
 
 means = np.random.rand(ndim)
 
@@ -16,21 +16,13 @@ cov = np.dot(cov,cov)
 
 icov = np.linalg.inv(cov)
 
-nwalkers = 250
+nwalkers = 32
 p0 = np.random.rand(ndim * nwalkers).reshape((nwalkers, ndim))
 
-sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob, args=[means, icov])
+sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,moves=emcee.moves.GaussianMove(cov=0.1), args=[means, icov])
 
 #lnprob(p, means, icov)
 
-pos, prob, state = sampler.run_mcmc(p0, 100)
+
+pos, prob, state = sampler.run_mcmc(p0, 1000)
 #sampler.reset()
-
-import matplotlib.pyplot as pl
-
-for i in range(ndim):
-    pl.figure()
-    pl.hist(sampler.flatchain[:,i], 100, color="k", histtype="step")
-    pl.title("Dimension {0:d}".format(i))
-
-pl.show()
