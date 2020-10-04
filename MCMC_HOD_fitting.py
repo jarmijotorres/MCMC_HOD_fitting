@@ -12,6 +12,7 @@ from schwimmbad import MPIPool
 t= time.time()  
 M = sys.argv[1]
 B = sys.argv[2]
+it = sys.argv[3]
 
 A_n = 0.5
 A_wp = 0.5
@@ -19,6 +20,10 @@ st = 1
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
+
+if rank == 0:
+    print('this is it %d \n'%int(it))
+
 
 #============================= halo parent catalogue ========================================#
 infile_r = '/madfs/data/FR/Baojiu/fr_data/B1024-PM1024/gadget_data/2015/halo_catalogues/'+str(M)+'/box'+str(B)+'/31/Rockstar_M200c_'+str(M)+'_B'+str(B)+'_B1024_NP1024_S31.dat'
@@ -97,7 +102,7 @@ prior_range = np.array([[12.0,14.0],
                         [12.0,14.0],
                         [0.3,0.9],
                         [0.5,1.3]])
-nwalkers = 10
+nwalkers = 8
 
 #prior_range = np.array([theta_test - 3.2*(theta_test*0.05),theta_test + 3.2*(theta_test*0.05)]).T
 #prior_range = np.array([[11.0,15.0],
@@ -109,14 +114,18 @@ nwalkers = 10
 ndim = len(prior_range)
 #p = theta_test
 
-p0 = [ np.random.uniform(low=p[0],high=p[1],size=nwalkers) for p in prior_range]
+#p0 = [ np.random.uniform(low=p[0],high=p[1],size=nwalkers) for p in prior_range]
 #p0 = [ np.random.normal(i,i*0.05,size=10) for i in p]
-p0 = np.array(p0).T
+#p0 = np.array(p0).T
+p0 = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/walkers_p0/p0_8walkers_set1.ini')
+if rank == 0:
+    print('initial step:\n')
+    print(p0)
 #save walkers initial state
 #np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/walkers_p0/p0_'+str(nwalkers)+'walkers_set'+str(st)+'.ini',p0)
 
 burnin_it = 1
-prod_it = 5000
+prod_it = 50
 #stretch_p = 2.0
 
 #filename = "/cosma7/data/dp004/dc-armi2/mcmc_runs/backends/mcmc_backend_stretch_lgprob_chain_"+str(nwalkers)+"wlk_"+str(burnin_it)+"burnin_"+str(prod_it)+"production_"+M+"_Box"+str(B)+".h5"
@@ -125,7 +134,7 @@ prod_it = 5000
     
 def main(p0,nwalkers,niter,ndim,lnprob,data):
     #print('Running mcmc...\n')
-    cov_vec =  np.array([0.01,0.01,0.01,1e-3,1e-3])
+    cov_vec =  np.array([0.03,0.03,0.03,3e-3,3e-3])
     Cov = np.identity(ndim)*cov_vec
     with MPIPool() as pool:
         if not pool.is_master():
@@ -141,30 +150,35 @@ def main(p0,nwalkers,niter,ndim,lnprob,data):
 
         #print("Running production...")
         pos, prob, state = sampler.run_mcmc(initial_state = p0, nsteps =niter[1],progress=True)
-
     return sampler, pos, prob, state
 
 
 niter = [burnin_it,prod_it]
 
-sampler, pos, prob, state = main(p0,nwalkers,niter,ndim,lnprob,Y_data)
+#L_sampler = []
+sampler, p0, prob, state = main(p0,nwalkers,niter,ndim,lnprob,Y_data)
+p0 = np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/walkers_p0/p0_8walkers_set1.ini',p0)
+
+#    L_sampler.append(sampler.chain)
+#L_sampler = np.array(L_sampler)
 #
-samples = sampler.flatchain
-t0 = samples[np.argmax(sampler.flatlnprobability)]
-log_probs = sampler.get_log_prob()
+#samples = sampler.flatchain
+#t0 = samples[np.argmax(sampler.flatlnprobability)]
+#log_probs = sampler.get_log_prob()
 if rank == 0:
-    np.save('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/HOD_mcmcpost_chains_'+str(M)+'_box'+str(B)+'_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp_set'+str(st)+'.npy',sampler.chain)
-    np.save('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/HOD_mcmcpost_logprob_'+str(M)+'_box'+str(B)+'_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp_set'+str(st)+'.npy',log_probs)
-    
+#    np.save('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/HOD_mcmcpost_chains_'+str(M)+'_box'+str(B)+'_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp_set'+str(st)+'.npy',L_sampler)
+    #np.save('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/HOD_mcmcpost_logprob_'+str(M)+'_box'+str(B)+'_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp_set'+str(st)+'.npy',log_probs)
+    np.save('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/HOD_mcmcpost_chains_'+str(M)+'_box'+str(B)+'_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp_set1a_iter_'+str(it)+'.npy',sampler.chain)
+
     #np.save('/cosma7/data/dp004/dc-armi2/HOD_mcmc_newmove_box'+str(B)+'_chains_'+str(niter)+'iter_'+str(nwalkers)+'walkers.npy',sampler.chain)
     e_t = time.time() - t
     print('%.3lf seconds'%e_t)
-    print('file save in:\n')
-    print('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/HOD_mcmcpost_chains_'+str(M)+'_box'+str(B)+'_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp_set'+str(st)+'.npy')
-    print('initial step in:\n')
+#    print('file save in:\n')
+#    print('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/HOD_mcmcpost_chains_'+str(M)+'_box'+str(B)+'_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp_set'+str(st)+'.npy')
+    print('final step:\n')
     print(p0)
-    print('best parameters in '+str(M)+' box'+str(B)+': \n')
-    print(t0)
+    #print('best parameters in '+str(M)+' box'+str(B)+': \n')
+    #print(t0)
 
 #print('file saved in: ')
 #print('/cosma7/data/dp004/dc-armi2/HOD_fitting_...')

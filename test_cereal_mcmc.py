@@ -16,30 +16,31 @@ data_r = np.loadtxt(infile_r,usecols=(2,33,8,9,10,5,6))
 #============================== observable function to fit ==================================#
 #must include errors
 #infile_data='/cosma7/data/dp004/dc-armi2/JK25_wp_logrp0.1_80_25bins_pimax100_z0.2_0.4.txt'
-infile_data_wp = '/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/wp_'+M+'_box'+str(B)+'_test.txt'
-infile_data_n = '/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/n_'+M+'_box'+str(B)+'_test.txt'
+theta_test = np.array([13.15,14.2,13.3,0.6,1.0])
 
-wp_data = np.loadtxt(infile_data_wp,usecols=(1,2,))
+infile_data_wp = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/test/wp_13.15000_14.20000_13.30000_0.60000_1.00000.txt'
+infile_data_n = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/test/ngal_13.15000_14.20000_13.30000_0.60000_1.00000.txt'
+
+wp_data = np.loadtxt(infile_data_wp)
 n_data = np.loadtxt(infile_data_n)
 
-Y_data = (n_data,wp_data)
+Y_data = (np.array([n_data,n_data*0.01]),np.array([wp_data,wp_data*0.01]).T)
 
 def model(theta):
-    name_cat = '/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/cats/HOD_%.4lf_%.4lf_%.4lf_%.4lf_%.4lf.h5'%tuple(theta)
-    if len(glob(name_cat)) == 1:
-        h5_cat = h5py.File(name_cat,'r')
-        G1 = h5_cat['mock_catalogue'][:,(0,1,2)]
-        wp_true = np.load('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.4lf_%.4lf_%.4lf_%.4lf_%.4lf.npy'%tuple(theta))
+    name_par = '/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/params/HOD_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.par'%tuple(theta)
+    if len(glob(name_par)) == 1:
+        n_sim = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/ns/ngal_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta))
+        wp_true = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta))
     else:
         G1_data = HOD_mock(theta,data_r)
-        h5_cat = h5py.File(name_cat, 'w')
-        h5_cat.create_dataset('mock_catalogue',data=G1_data,compression='gzip')
-        h5_cat.close()
-        G1 = G1_data[:,(0,1,2)]        
-        wp_true = wp_from_box(G1,Lbox = 1024.,Nsigma = 25)
-        np.save('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.4lf_%.4lf_%.4lf_%.4lf_%.4lf.npy'%tuple(theta),wp_true)
+        G1 = G1_data[:,(0,1,2)]
+        n_sim = len(G1) / (1024.**3.)
+        wp_true = wp_from_box(G1,n_threads=16,Lbox = 1024.,Nsigma = 25)
+        #
+        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/params/HOD_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.par'%tuple(theta),theta)
+        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/ns/ngal_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta),np.array([n_sim]))
+        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta),wp_true)
         
-    n_sim = len(G1) / (1024.**3.)
     n_model = np.array([n_sim,n_sim*0.01])#fix error at 1% 
     wp_model = np.array([wp_true, wp_true*0.01]).T
     
@@ -72,7 +73,7 @@ def lnprob(theta,ydata=Y_data):
         return -np.inf
     return lp + lnlike(theta,ydata)
     
-nwalkers = 10
+nwalkers = 6
 prior_range = np.array([[12.5,13.5],
                         [13.5,14.5],
                         [12.5,13.5],
@@ -80,15 +81,17 @@ prior_range = np.array([[12.5,13.5],
                         [0.5,1.5]])
 ndim = len(prior_range) 
 #p0 = [ np.array(initial)+ np.random.normal(0,0.1,size=ndim) for i in range(nwalkers)]
-p0 = [ np.random.uniform(low=p[0],high=p[1],size=10) for p in prior_range]
+p0 = [ np.random.uniform(low=p[0],high=p[1],size=nwalkers) for p in prior_range]
 p0 = np.array(p0).T
 burnin_it = 0
-prod_it = 10
+prod_it = 3
 stretch_p = 2.0
 
 def main(p0,nwalkers,niter,ndim,lnprob,data):
+    cov_vec =  np.array([0.01,0.01,0.01,1e-3,1e-3])
+    Cov = np.identity(ndim)*cov_vec
     #print('Running mcmc...\n')
-    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,moves=emcee.moves.StretchMove(a=stretch_p), backend=None,pool=None, args=np.array([Y_data]))
+    sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,moves=emcee.moves.GaussianMove(cov=Cov), backend=None,pool=None, args=np.array([Y_data]))
 
     #print("Running burn-in...")
     #p0, _, _ = sampler.run_mcmc(initial_state=p0, nsteps=niter[0],progress=True)
@@ -103,4 +106,8 @@ def main(p0,nwalkers,niter,ndim,lnprob,data):
 
 niter = [burnin_it,prod_it]
 
-sampler, pos, prob, state = main(p0,nwalkers,niter,ndim,lnprob,Y_data)
+L_sampler = []
+for i in range(5):
+    sampler, p0, prob, state = main(p0,nwalkers,niter,ndim,lnprob,Y_data)
+    L_sampler.append(sampler.chain)
+L_sampler = np.array(L_sampler)
