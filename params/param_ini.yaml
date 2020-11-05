@@ -1,0 +1,8 @@
+{A_n: 0.1, A_wp: 0.9, Box: 1, Model: GR, N_walkers: 20, burnin_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/burnin_20_theta1_wlk_1000_0.1An_0.9Awp.npy,
+  burnin_iterations: 1000, burnin_logProb_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/burnin_20_theta1_logProb_wlk_1000_0.1An_0.9Awp.npy,
+  chain_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/HOD_mcmcpost_chains_theta1_GR_box1_1000burniniter_3000proditer_20walkers_chi2_0.1An_0.9Awp.npy,
+  halo_file: /madfs/data/FR/Baojiu/fr_data/B1024-PM1024/gadget_data/2015/halo_catalogues/GR/box1/31/Rockstar_M200c_GR_B1_B1024_NP1024_S31.dat,
+  logProb_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/HOD_mcmcpost_logprob_theta1_GR_box1_1000burniniter_3000iter_20walkers_chi2_0.1An_0.9Awp.npy,
+  observable_n: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/test/ngal_13.15000_14.20000_13.30000_0.60000_1.00000.txt,
+  observable_wp: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/test/wp_13.15000_14.20000_13.30000_0.60000_1.00000.txt,
+  production_iterations: 3000}
