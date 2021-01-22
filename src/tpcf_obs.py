@@ -1,6 +1,7 @@
 import numpy as np
 from glob import glob
-from halotools.mock_observables import wp
+#from halotools.mock_observables import wp
+from Corrfunc.theory import wp
 
 def wp_from_box(G1,n_threads,Lbox = 1024.,Nsigma = 25):
     ## replace by real error estimation  #number of bins on rp log binned
@@ -12,7 +13,8 @@ def wp_from_box(G1,n_threads,Lbox = 1024.,Nsigma = 25):
     dpi = np.diff(pi)[0]
     s_l = np.log10(sigma[:-1]) + np.diff(np.log10(sigma))[0]/2.
     rp = 10**s_l
-    wp_obs = wp(G1,sigma,pi_max=pimax,period=[Lbox,Lbox,Lbox],num_threads=n_threads,randoms=None)
-    wp_true = wp_obs / rp
+    wp_obs = wp(boxsize=Lbox,binfile=sigma,X=G1[:,0],Y=G1[:,1],Z=G1[:,2],pimax=pimax,nthreads=n_threads,weights=G1[:,4], weight_type='pair_product',xbin_refine_factor=2, ybin_refine_factor=2, zbin_refine_factor=1,max_cells_per_dim=100)
+    wp_true = wp_obs['wp'] / rp
     
     return wp_true
+

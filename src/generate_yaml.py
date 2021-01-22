@@ -1,9 +1,10 @@
 import yaml
+import sys
 
 #this script generates a yaml file that serves as an input for the mcmc routines. The file should contain parameters as the number of iterations and, names of the outputs to generate, and weights for the chi square function. 
 #Also, it needs the parameters of the parent halo to generate the HOD mock. For this simulations there is 3 different models of gravity (standar General relativity GR; f(R) modified gravity F5, F6) and there are 5 boxes realizations.
 
-yaml_name = '/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/param_ini.yaml'
+yaml_name = sys.argv[1]#'/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/params/param_ini.yaml'
 
 M='GR'
 B = 1
@@ -13,13 +14,13 @@ A_n = 0.1
 A_wp = 0.9
 #number of iterations
 nwalkers = 20
-burnin_it = 1000
-prod_it = 3000
+burnin_it = 500
+prod_it = 1000
 
-burnin_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/burnin_'+str(nwalkers)+'_theta1_wlk_'+str(burnin_it)+'_'+str(A_n)+'An_'+str(A_wp)+'Awp.npy'
-burnin_logProb_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/burnin_'+str(nwalkers)+'_theta1_logProb_wlk_'+str(burnin_it)+'_'+str(A_n)+'An_'+str(A_wp)+'Awp.npy'
-chain_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/HOD_mcmcpost_chains_theta1_'+str(M)+'_box'+str(B)+'_'+str(burnin_it)+'burniniter_'+str(prod_it)+'proditer_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp.npy'
-logProb_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/HOD_mcmcpost_logprob_theta1_'+str(M)+'_box'+str(B)+'_'+str(burnin_it)+'burniniter_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp.npy'
+burnin_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/burnin_'+str(nwalkers)+'wlk_theta_test_ww_'+str(burnin_it)+'it_'+str(A_n)+'An_'+str(A_wp)+'Awp.npy'
+burnin_logProb_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/burnin_'+str(nwalkers)+'wlk_theta_test_ww_logProb_'+str(burnin_it)+'it_'+str(A_n)+'An_'+str(A_wp)+'Awp.npy'
+chain_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/HOD_mcmcpost_chains_theta_test_ww_'+str(M)+'_box'+str(B)+'_'+str(prod_it)+'proditer_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp.npy'
+logProb_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/HOD_mcmcpost_logprob_theta_test_ww_'+str(M)+'_box'+str(B)+'_'+str(burnin_it)+'burniniter_'+str(prod_it)+'iter_'+str(nwalkers)+'walkers_chi2_'+str(A_n)+'An_'+str(A_wp)+'Awp.npy'
 
 
 #create dictionary
