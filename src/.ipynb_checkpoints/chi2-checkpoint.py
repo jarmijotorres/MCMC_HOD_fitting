@@ -18,7 +18,7 @@ def chis(y_sim,y_obs,A_n,A_wp):
     wp_sim_std = y_sim[1][:,1]
     
     wp_err_tot = np.sqrt(wp_sim_std**2+wp_obs_std**2)#sum errors in quadrature
-    n_err_tot = np.sqrt(n_obs_std + n_sim_std**2.)
+    n_err_tot = np.sqrt(n_obs_std**2. + n_sim_std**2.)
 
     chis_bins = ((wp_sim - wp_obs)/wp_err_tot)**2.
 

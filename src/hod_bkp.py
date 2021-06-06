@@ -5,40 +5,27 @@ from scipy.interpolate import interp1d
 import time
 
 Lbox=1024.0                                     #Box size in Mpc/h
-log_n_log_Mh = np.loadtxt('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/files/mVector_WMAP9SOCTinker10z03.txt')#Analytic halo mass function (Tinker 2010 differential)
-Tinker10_HMF_differential = interp1d(np.log10(log_n_log_Mh[:,0]),np.log10(log_n_log_Mh[:,3])) #HMF to compute weights for simulation haloes #Y-axis is a log quantity 
-Box_HMF = np.load('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/files/HMF_box1.npy') #simulation HMF 
-Mhalo_min= 1e12
+#log_n_log_Mh = np.loadtxt('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/files/mVector_WMAP9SOCTinker10z03.txt')#Analytic halo mass function (Tinker 2010 differential)
+#Tinker10_HMF_differential = interp1d(np.log10(log_n_log_Mh[:,0]),np.log10(log_n_log_Mh[:,3])) #HMF to compute weights for simulation haloes #Y-axis is a log quantity 
+#Box_HMF = np.load('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/files/HMF_box1.npy') #simulation HMF 
+#Mhalo_min= 1e12
 #Create cumulative disttibution function. Needed to interpolate
-cum_HMF = np.cumsum(Box_HMF[::-1,3])*np.diff(Box_HMF[:,0])[0]
-Box_HMF = np.vstack((Box_HMF.T,cum_HMF[::-1])).T
+#cum_HMF = np.cumsum(Box_HMF[::-1,3])*np.diff(Box_HMF[:,0])[0]
+#Box_HMF = np.vstack((Box_HMF.T,cum_HMF[::-1])).T
+
+
+#Mlimit = 10**Box_HMF[:,1][Box_HMF[:,1] < 14.0][-1]
+#def weight_function(M,Mlimit=Mlimit):
+#    Mbins=np.linspace(Box_HMF[0,0],np.log10(Mlimit),len(Box_HMF[Box_HMF[:,1]<np.log10(Mlimit)])+2)
+#M_in_bin = np.digitize(x=np.log10(M),bins=Mbins)
+#    weight_list = 10**Tinker10_HMF_differential(Box_HMF[:,2][Box_HMF[:,1]#<=np.log10(Mlimit)])/Box_HMF[:,3][Box_HMF[:,1]<=np.log10(Mlimit)]
+#    weight_mass = weight_list[M_in_bin - 1]
+#    return weight_mass
 
 #diff_interpolation = interp1d(Box_HMF[:,2],np.log10(Box_HMF[:,3]))#global function in this module as Tinker10_HMF_cumulative
 
 #more global variables
-Mlimit = 10**Box_HMF[:,0][(10**Tinker10_HMF_differential(Box_HMF[:,2])-Box_HMF[:,3])/10**Tinker10_HMF_differential(Box_HMF[:,2]) > 0.05][-1]# It takes the last bin where the simulation curve is below tha analytic one (look HMF plot).
-def weight_HMF(M,Mthresh=Mhalo_min,Mlimit=Mlimit):
-    """
-    Function to compute weigths for halo mass distribution of the simulation box.
-    It compares the actual mass function from the simulation with an analytical form, so is possible to compensate the lack of low mass haloes due to resolution limitation.
-    parameters:
-        M: halo mass, which is evaluated in the analytic function to compare with the actual HMF
-        Mthresh: lower limit where halo masses are upweighted, below Mthresh the weight is 0
-        Mlimit: upper limit, after this all masses have weight = 1
-    return: 
-        w: weigth for halo mass to compensate the simulation mass function. The weight is computed as the ratio between the analytic form at M=M_halo and the mass distribution in the bin where M belongs
-    """    
-    if (M <= Mthresh):
-        w = 0.0
-    elif (M >= Mlimit):
-        w = 1.0
-    else:
-        HMF_in_bin = Box_HMF[:,3][(Box_HMF[:,0] <= np.log10(M))&(Box_HMF[:,1] > np.log10(M))]
-        M_in_bin = Box_HMF[:,0][(Box_HMF[:,0] <= np.log10(M))&(Box_HMF[:,1] > np.log10(M))]
-        w = 10**(Tinker10_HMF_differential(M_in_bin)) / HMF_in_bin
-    return w
 
-weight_HMF = np.vectorize(weight_HMF)
 
 def value_locate(rbin,value):
     """
@@ -98,11 +85,8 @@ def HOD_mock(theta,haloes,weights_haloes=None):
     halo_with_sat = New_haloes[b4]# new variable to iterate over haloes with satellites only
     Nsat_perhalo = r2[b4]
     haloes_cen_Nsat = np.vstack([halo_with_sat.T,Nsat_perhalo]).T# Input for sat_occupation routine
-    return haloes_cen_Nsat
-    
-    
-    
-    
+    #return haloes_cen_Nsa
+
     n_bins = 100#bins to replicate NFW profile
     #iteration over haloes with satellites. This may be potetially time consuming as the vector is around 10000 entries large.
     mock = []#list to gather the catalogue

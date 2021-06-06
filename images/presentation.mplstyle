@@ -1,0 +1,21 @@
+xtick.labelsize : 16
+ytick.labelsize : 16
+xtick.direction : in
+ytick.direction : in
+axes.linewidth : 1.5
+font.family : DejaVu Sans
+font.size : 20
+text.usetex : True
+mathtext.fontset : cm
+mathtext.rm : serif
+xtick.top : True
+ytick.right : True
+errorbar.capsize : 3
+xtick.major.size : 5
+xtick.major.width : 1.5
+xtick.minor.size : 3
+xtick.minor.width : 1.5
+ytick.major.size : 5
+ytick.major.width : 1.5
+ytick.minor.size : 3
+ytick.minor.width : 1.5

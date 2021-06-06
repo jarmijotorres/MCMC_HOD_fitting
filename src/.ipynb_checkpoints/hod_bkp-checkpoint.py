@@ -5,33 +5,27 @@ from scipy.interpolate import interp1d
 import time
 
 Lbox=1024.0                                     #Box size in Mpc/h
-Mhalo_min= 1.56e12                              #Minimum mass to define a halo (20 particles)
-log_dndlogM_log_Mh = np.load('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/PS_HMF_data.npy')      #Analytic halo mass function (Press-Schechter)
-PS_HMF = interp1d(log_dndlogM_log_Mh[:,0],log_dndlogM_log_Mh[:,1],) #HMF to compute weights for simulation haloes #Y-axis is a log quantity 
-Box_HMF = np.load('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/HMF_box1.npy') #simulation HMF
-Mlimit = 10**Box_HMF[:,1][(10**PS_HMF(Box_HMF[:,2])-Box_HMF[:,3])/10**PS_HMF(Box_HMF[:,2]) > 0][-1]
+#log_n_log_Mh = np.loadtxt('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/files/mVector_WMAP9SOCTinker10z03.txt')#Analytic halo mass function (Tinker 2010 differential)
+#Tinker10_HMF_differential = interp1d(np.log10(log_n_log_Mh[:,0]),np.log10(log_n_log_Mh[:,3])) #HMF to compute weights for simulation haloes #Y-axis is a log quantity 
+#Box_HMF = np.load('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/files/HMF_box1.npy') #simulation HMF 
+#Mhalo_min= 1e12
+#Create cumulative disttibution function. Needed to interpolate
+#cum_HMF = np.cumsum(Box_HMF[::-1,3])*np.diff(Box_HMF[:,0])[0]
+#Box_HMF = np.vstack((Box_HMF.T,cum_HMF[::-1])).T
 
-def weight_HMF(M,Mthresh=Mhalo_min,Mlimit=Mlimit):
-    """
-    Function to compute weigths for halo mass distribution of the simulation box.
-    It compares the actual mass function from the simulation with an analytical form, so is possible to compensate the lack of low mass haloes due to resolution limitation.
-    parameters:
-        M: halo mass, which is evaluated in the analytic function to compare with the actual HMF
-        Mthresh: lower limit where halo masses are upweighted, below Mthresh the weight is 0
-        Mlimit: upper limit, after this all masses have weight = 1
-    return: 
-        w: weigth for halo mass to compensate the simulation mass function. The weight is computed as the ratio between the analytic form at M=M_halo and the mass distribution in the bin where M belongs
-    """    
-    if (M < Mthresh):
-        w = 0.0
-    elif (M >= Mlimit):
-        w = 1.0
-    else:
-        M_in_bin = Box_HMF[:,3][(Box_HMF[:,0] < np.log10(M))&(Box_HMF[:,1] > np.log10(M))]
-        w = 10**PS_HMF(np.log10(M)) / M_in_bin
-    return w
 
-weight_HMF = np.vectorize(weight_HMF)
+#Mlimit = 10**Box_HMF[:,1][Box_HMF[:,1] < 14.0][-1]
+#def weight_function(M,Mlimit=Mlimit):
+#    Mbins=np.linspace(Box_HMF[0,0],np.log10(Mlimit),len(Box_HMF[Box_HMF[:,1]<np.log10(Mlimit)])+2)
+#M_in_bin = np.digitize(x=np.log10(M),bins=Mbins)
+#    weight_list = 10**Tinker10_HMF_differential(Box_HMF[:,2][Box_HMF[:,1]#<=np.log10(Mlimit)])/Box_HMF[:,3][Box_HMF[:,1]<=np.log10(Mlimit)]
+#    weight_mass = weight_list[M_in_bin - 1]
+#    return weight_mass
+
+#diff_interpolation = interp1d(Box_HMF[:,2],np.log10(Box_HMF[:,3]))#global function in this module as Tinker10_HMF_cumulative
+
+#more global variables
+
 
 def value_locate(rbin,value):
     """
@@ -47,7 +41,7 @@ def value_locate(rbin,value):
         vals[i] = np.where(rbin==np.max(rbin[(rbin - value[i]) < 0]))[0][0]
     return vals.astype(int)
 
-def HOD_mock(theta,data_r,weights_haloes=None):
+def HOD_mock(theta,haloes,weights_haloes=None):
     """
     Method to create a mock catalogue from a halo parent catalogue and a set of parameters.
     parameters:
@@ -57,22 +51,26 @@ def HOD_mock(theta,data_r,weights_haloes=None):
     return:
         mock_cat: catalogue of HOD galaxies including position and host halo mass.
     """
-    n_lines_r = len(data_r)
 
-    haloes = data_r[(data_r[:,1]<0)&(data_r[:,0]>Mhalo_min)][:,(0,2,3,4,5,6)]
-    #halo catalogue including mass, pos, Rv, Rs. Please consult your halo finder to obtain these columns
-    haloes=haloes[np.argsort(haloes[:,0])[::-1]] #sort from higher to lower masses
-    
-    logMmin, M1, M0, sigma, alpha = theta
-    
-    mock = []#list to gather the catalogue
-    if weights_haloes == None:
-        Ncen = 0.5*(1.0+erf((np.log10(haloes[:,0])-logMmin)/sigma))#function for Number of centrals
+    logMmin, M1, M0, sigma, alpha = theta #unpack parameters
+        
+    if weights_haloes is None:
+        New_haloes = np.vstack([haloes.T,np.full_like(haloes[:,0],1.)]).T
     else:
-        Ncen = 0.5*(1.0+erf((np.log10(haloes[:,0])-logMmin)/sigma))*weights_haloes#function for Number of centrals (between 0 and 1)
+        New_haloes = np.vstack([haloes.T,weights_haloes]).T
+    Ncen = 0.5*(1.0+erf((np.log10(New_haloes[:,0])-logMmin)/sigma))#function for Number of centrals
+#function for Number of centrals (between 0 and 1)
+
+    if (theta == 0.0).any():
+        r1 = np.random.random(size=len(Ncen))
+        b2 = Ncen >=r1
+        New_haloes = New_haloes[b2]
+        haloes_cen = np.vstack([New_haloes[:,(1,2,3,0,-1)].T,np.full(len(New_haloes),1.0)]).T
+        return haloes_cen
+    
     Nsat = np.zeros_like(Ncen)
-    b1 = haloes[:,0] > 10**M0#boolean 1: haloes that may contain satellites depending on M0
-    Nsat[b1] = Ncen[b1]*((haloes[:,0][b1]-(10**M0))/(10**M1))**alpha# function for number of satellites
+    b1 = New_haloes[:,0] > 10**M0#boolean 1: haloes that may contain satellites depending on M0
+    Nsat[b1] = Ncen[b1]*((New_haloes[:,0][b1]-(10**M0))/(10**M1))**alpha# function for number of satellites
     r1 = np.random.random(size=len(Ncen))#MC random to populate haloes with centrals
     r2 = np.random.poisson(lam=Nsat,size=len(Nsat))# Poisson random for the number of satellites
     is_cen = np.zeros_like(Ncen,dtype=int)# flag: halo in catalogue has central
@@ -84,17 +82,14 @@ def HOD_mock(theta,data_r,weights_haloes=None):
     b4 = r2 > 0# boolean 4: halo with central has satellites
     has_sat = np.zeros_like(Ncen,dtype=int)#flag: halo has satellites
     has_sat[b4] = 1
-    halo_with_sat = haloes[b4]# new variable to iterate over haloes with satellites only
-    m=halo_with_sat[:,0]
-    x=halo_with_sat[:,1]
-    y=halo_with_sat[:,2]
-    z=halo_with_sat[:,3]
-    rv=halo_with_sat[:,4]
-    rs=halo_with_sat[:,5]
+    halo_with_sat = New_haloes[b4]# new variable to iterate over haloes with satellites only
     Nsat_perhalo = r2[b4]
-    
+    haloes_cen_Nsat = np.vstack([halo_with_sat.T,Nsat_perhalo]).T# Input for sat_occupation routine
+    #return haloes_cen_Nsa
+
     n_bins = 100#bins to replicate NFW profile
     #iteration over haloes with satellites. This may be potetially time consuming as the vector is around 10000 entries large.
+    mock = []#list to gather the catalogue
     for i,hi in enumerate(halo_with_sat):
         u = np.random.random(Nsat_perhalo[i])#position in halo coordinates
         v = np.random.random(Nsat_perhalo[i])
@@ -127,24 +122,23 @@ def HOD_mock(theta,data_r,weights_haloes=None):
         z[bz2] = z[bz2] + Lbox
         xyz_censat = np.vstack([hi[1:4],np.array([x,y,z]).T])
         mass = np.full(len(xyz_censat),hi[0])
+        w_halo = np.full(len(xyz_censat),hi[6])#hi[6] is the weight
         id_cen_sat = np.full_like(mass,-1)
         id_cen_sat[0] = 1
-        halo_censat = np.vstack([xyz_censat.T,mass,id_cen_sat]).T# all haloes with satellites
-        
+        halo_censat = np.vstack([xyz_censat.T,mass,w_halo,id_cen_sat]).T# all haloes with satellites
         mock.append(halo_censat)
     b5 = (is_cen == 1)&(~b4)#boolean 5: all haloes frome above + haloes with satellites
-    halos_cen = np.vstack([haloes[:,(1,2,3,0)][b5].T,np.full(len(haloes[b5]),1.0)]).T
-    mock.append(halos_cen)
+    haloes_cen = np.vstack([New_haloes[:,(1,2,3,0,-1)][b5].T,np.full(len(New_haloes[b5]),1.0)]).T
+    mock.append(haloes_cen)
     mock_cat = np.concatenate(mock)# array containing the catalogue
-    
     return mock_cat
 
 #function to populate with satellites. Needs to be vectorized properly before using it. Not currently in use.
-def sat_occupation(m,xx,yy,zz,rv,rs,Nsat_in,n_bins = 100):
-    u = np.random.random(Nsat_in)
-    v = np.random.random(Nsat_in)
-    w = np.random.random(Nsat_in)
-    c = rv/rs
+def sat_occupation(hi,n_bins = 100,Ns=16):
+    u = np.random.random(int(hi[7]))
+    v = np.random.random(int(hi[7]))
+    w = np.random.random(int(hi[7]))
+    c = hi[4] / hi[5]
     if c < 3.0: c = 3.0
     norm1 = np.log(1.0+c)-c/(1.0+c)
     rbins = np.zeros((n_bins,2))
@@ -152,12 +146,12 @@ def sat_occupation(m,xx,yy,zz,rv,rs,Nsat_in,n_bins = 100):
     rbins[:,1] = np.log(1.0+c*rbins[:,0])-c*rbins[:,0]/(1.0+c*rbins[:,0])
     rbins[:,1] /= norm1
     locs = value_locate(rbins[:,1],u)
-    rr = (rbins[:,0][locs]+0.5/n_bins)*rv/1000.0
+    rr = (rbins[:,0][locs]+0.5/n_bins)*hi[4]/1000.0
     tt = np.cos(v*2.0 - 1.0)
     pp = w*2.0*np.pi  
-    x= xx+rr*np.sin(tt)*np.cos(pp)
-    y= yy+rr*np.sin(tt)*np.sin(pp)
-    z= zz+rr*np.cos(tt)
+    x= hi[1]+rr*np.sin(tt)*np.cos(pp)
+    y= hi[2]+rr*np.sin(tt)*np.sin(pp)
+    z= hi[3]+rr*np.cos(tt)
     bx1 = x > Lbox
     by1 = y > Lbox
     bz1 = z > Lbox
@@ -170,10 +164,16 @@ def sat_occupation(m,xx,yy,zz,rv,rs,Nsat_in,n_bins = 100):
     x[bx2] = x[bx2] + Lbox
     y[by2] = y[by2] + Lbox
     z[bz2] = z[bz2] + Lbox
-    xyz_censat = np.vstack([np.array([xx,yy,zz]),np.array([x,y,z]).T])
-    mass = np.full(len(xyz_censat),m)
+    xyz_censat = np.vstack([np.array([hi[1],hi[2],hi[3]]),np.array([x,y,z]).T])
+    mass = np.full(len(xyz_censat),hi[0])
     id_cen_sat = np.full_like(mass,-1)
     id_cen_sat[0] = 1
     halo_censat = np.vstack([xyz_censat.T,mass,id_cen_sat]).T
-    return halo_censat
+    
+    halo_buffer = np.zeros((Ns+1,halo_censat.shape[1]))
+    for im,hm in enumerate(halo_censat):
+        halo_buffer[im] = hm
+    
+    return halo_buffer
+    
     

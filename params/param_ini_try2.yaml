@@ -1,0 +1,8 @@
+{A_n: 0.9, A_wp: 0.1, Lbox: 768, Model: GR, N_walkers: 20, burnin_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMCpost_burnin_500it_20wlk_0.9An_0.1Awp.npy,
+  burnin_iterations: 500, burnin_logProb_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMClklhd_burnin_500it_20wlk_0.9An_0.1Awp.npy,
+  chain_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/MCMCpost_chains_HOD_GR_L768_1000it_20walkers_0.9An_0.1Awp.npy,
+  halo_file: /cosma7/data/dp004/dc-armi2/HOD_mocks/halo_catalogues/Haloes_MG-Gadget_GR_z0.3_L768_M200c_pos_R200_c200_logMhalomin_11.2.hdf5,
+  logProb_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/MCMClklhd_chains_HOD_GR_L768_1000it_20walkers_0.9An_0.1Awp.npy,
+  observable_n: /cosma7/data/dp004/dc-armi2/Jackknife_runs/JK25_numberDensity_z0.2_0.4.txt,
+  observable_wp: /cosma7/data/dp004/dc-armi2/Jackknife_runs/JK25_wp_logrp0.5_50_20bins_pimax80_z0.2_0.4.txt,
+  production_iterations: 1000}
