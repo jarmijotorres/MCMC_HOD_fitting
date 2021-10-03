@@ -55,24 +55,19 @@ n_data[1] = n_data[0]*0.15
 # additional error has been added, just for modelling
 Y_data = (n_data,wp_obs[:,(1,2)])#discard bins at the begining and at the end
 
-
-#name_datacube = '/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/datacube/datacube_run1.pkl'
-#Mock_datacube = Datacube(name_datacube)
+if rank ==1:
+    name_datacube = '/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/datacube/datacube_test1.pkl'
+    Mock_datacube = Datacube(name_datacube)
+    print('Datacube created')
+else:
+    name_datacube=None
+    Mock_datacube=None
 
 def model(theta):
-    name_par = '/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/params/HOD_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.par'%tuple(theta)
-    if len(glob(name_par)) == 1:
-        n_sim = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/ns/ngal_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta))
-        wp_true = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta))
-    else:
-        G1 = HOD_mock_subhaloes(theta,haloes,sh_table,Lbox=Lbox,weights_haloes=None)
-        n_sim = np.sum(G1[:,4]) / (Lbox**3.)
-        wp_true = wp_from_box(G1,n_threads=16,Lbox = Lbox,Nsigma = 20)
-            #
-        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/params/HOD_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.par'%tuple(theta),theta)
-        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/ns/ngal_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta),np.array([n_sim]))
-        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta),wp_true)
-        
+    G1 = HOD_mock_subhaloes(theta,haloes,sh_table,Lbox=Lbox,weights_haloes=None)
+    n_sim = np.sum(G1[:,4]) / (Lbox**3.)
+    wp_true = wp_from_box(G1,n_threads=16,Lbox = Lbox,Nsigma = 20)
+    #        
     n_model = np.array([n_sim,n_sim*0.1])#try 10-15% error for models number density
     wp_model = np.array([wp_true, wp_true*0.1]).T
     
@@ -82,39 +77,15 @@ def lnlike(theta,ydata=Y_data): #chi square test
     ymodel = model(theta)
     Schis2 = chis(ymodel,ydata,A_n=A_n,A_wp=A_wp)
     LnLike = -0.5*(Schis2)
+    
     return LnLike
 
 
-#============== define prior ranges ================#
-#log_Mhalo_min = np.log10(Mhalo_min)
-#mass_def_range = np.array([[12.5,13.5],
-#                        [13.8,14.6],
-#                        [12.5,13.5],
-#                        [0.3,0.7],
-#                        [0.8,1.3]])
-mass_def_range = np.array([[12.5,13.5],
-                        [13.5,14.5],
-                        [12.5,14.0],
-                        [0.1,0.5],
-                        [0.8,1.0]])
-
-ndim=5
-#Initial state
-p0 = np.zeros((nwalkers,ndim))
-for i in range(nwalkers):
-    p0[i,0] = np.random.uniform(mass_def_range[0,0],mass_def_range[0,1])
-    p0[i,2] = np.random.uniform(p0[i,0],mass_def_range[0,1])
-    p0[i,1] = np.random.uniform(p0[i,2],mass_def_range[1,1])
-    p0[i,3] = np.random.uniform(mass_def_range[3,0],mass_def_range[3,1])
-    p0[i,4] = np.random.uniform(mass_def_range[4,0],mass_def_range[4,1])
-
-PR = np.array([[12.5,14.5],
+PR = np.array([[12.5,14.5], #Prior ranges
              [12.5,14.5],
              [12.5,14.5],
              [0.0,0.9],
-             [0.7,1.5]])
-
-    
+             [0.7,1.5]])  
 def lnprior(theta,prior_range=PR):
     b=np.zeros_like(theta,dtype=bool)
     for p,tp in enumerate(theta):
@@ -135,10 +106,18 @@ def lnprior(theta,prior_range=PR):
 def lnprob(theta,ydata=Y_data):
     ymodel = model(theta)
     lp = lnprior(theta) 
-    if lp != 0:
+    if lp == 0:
+        new_row = {'name_id':'%.5lf_%.5lf_%.5lf_%.5lf_%.5lf'%tuple(theta),'params':theta,'ngal':ymodel[0][0],'wp':ymodel[1][:,0]}
+        new_row = comm.gather(new_row,root=1)
+        if rank==1:
+            print('I root (rank {}) gathered all objects {}'.format(rank,theta_job))
+            for row in new_row:
+                Mock_datacube.add_row_dc(row)
+        return lp + lnlike(theta,ydata)
+    else:
         return -np.inf
-    return lp + lnlike(theta,ydata)
-    
+
+
 def main(p0,nwalkers,niter,ndim,lnprob,data):
     #print('Running mcmc...\n')
     st = np.array([0.02,0.02,0.02,0.02,0.02])/3#array with stepsize for the parameter space
@@ -150,26 +129,50 @@ def main(p0,nwalkers,niter,ndim,lnprob,data):
             sys.exit(0)
         sampler = emcee.EnsembleSampler(nwalkers, ndim, lnprob,moves=emcee.moves.GaussianMove(cov=Cov), backend=None,pool=pool, args=np.array([Y_data]))
 
-        ##print("Running burn-in...")
+        print("Running burn-in...")
         p0, _, _ = sampler.run_mcmc(initial_state=p0, nsteps=niter[0],progress=True)
         if rank==0:
             np.save(burnin_file,sampler.chain)
             np.save(burnin_logProb_file,sampler.get_log_prob())
         sampler.reset()
 
-        #print("Running production...")
+        print("Running production...")
         pos, prob, state = sampler.run_mcmc(initial_state = p0, nsteps =niter[1],progress=True)
     return sampler, pos, prob, state
 
 #=================== Run main function ==========================#
+ndim=5
+#============== define prior ranges ================#
+#log_Mhalo_min = np.log10(Mhalo_min)
+#mass_def_range = np.array([[12.5,13.5],
+#                        [13.8,14.6],
+#                        [12.5,13.5],
+#                        [0.3,0.7],
+#                        [0.8,1.3]])
+mass_def_range = np.array([[12.5,13.5],
+                        [13.5,14.5],
+                        [12.5,14.0],
+                        [0.1,0.5],
+                        [0.8,1.0]])
+#Initial state
+p0 = np.zeros((nwalkers,ndim))
+for i in range(nwalkers):
+    p0[i,0] = np.random.uniform(mass_def_range[0,0],mass_def_range[0,1])
+    p0[i,2] = np.random.uniform(p0[i,0],mass_def_range[0,1])
+    p0[i,1] = np.random.uniform(p0[i,2],mass_def_range[1,1])
+    p0[i,3] = np.random.uniform(mass_def_range[3,0],mass_def_range[3,1])
+    p0[i,4] = np.random.uniform(mass_def_range[4,0],mass_def_range[4,1])
+
 niter = [burnin_it,prod_it]
 sampler, p0, prob, state = main(p0,nwalkers,niter,ndim,lnprob,Y_data)
+
+if rank == 1:
+    Mock_datacube.table.to_pickle(name_datacube)
+    print('data saved on {}'.format(name_datacube))
 
 if rank == 0:
     np.save(chain_file,sampler.chain)
     np.save(logProb_file,sampler.get_log_prob())
     e_t = time.time() - t
-    #Mock_datacube.table.to_pickle(name_datacube)
-    #print('data saved on {}'.format(name_datacube))
     print('MCMC done in %.3lf seconds'%e_t)
     print("\n end of program.\n ")

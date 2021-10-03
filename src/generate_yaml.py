@@ -8,27 +8,27 @@ yaml_name = sys.argv[1]#'/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/params/pa
 
 M='GR'
 Lbox = 1536
-halo_file = '/cosma7/data/dp004/dc-armi2/HOD_mocks/halo_catalogues/Haloes_MG-Gadget_'+M+'_z0.3_L'+str(Lbox)+'_M200c_pos_R200_c200_logMhalomin_11.2.hdf5'
+halo_file = '/cosma7/data/dp004/dc-armi2/HOD_mocks/halo_catalogues/Haloes_MG-Gadget_'+M+'_z0.3_L'+str(Lbox)+'_ID_M200c_pos_R200_c200scatter_logMhalomin_11.2.hdf5'
 
-A_n = 0.05
-A_wp = 0.95
-#number of iterations
-nwalkers = 20
-burnin_it = 600
-prod_it = 1800
+A_n = 0.5
+A_wp = 0.5
+#number of iterations 
+nwalkers = 56
+burnin_it = 200
+prod_it = 400
 
-burnin_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMCpost_burnin_'+str(burnin_it)+'it_'+str(nwalkers)+'wlk_'+str(A_n)+'An_'+str(A_wp)+'Awp_target2.npy'
-burnin_logProb_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMClklhd_burnin_'+str(burnin_it)+'it_'+str(nwalkers)+'wlk_'+str(A_n)+'An_'+str(A_wp)+'Awp_target2.npy'
-chain_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/MCMCpost_chains_HOD_'+str(M)+'_L'+str(Lbox)+'_'+str(prod_it)+'it_'+str(nwalkers)+'walkers_'+str(A_n)+'An_'+str(A_wp)+'Awp_target2.npy'
-logProb_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/MCMClklhd_chains_HOD_'+str(M)+'_L'+str(Lbox)+'_'+str(prod_it)+'it_'+str(nwalkers)+'walkers_'+str(A_n)+'An_'+str(A_wp)+'Awp_target2.npy'
+burnin_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMCpost_burnin_'+str(burnin_it)+'it_'+str(nwalkers)+'wlk_'+str(A_n)+'An_'+str(A_wp)+'Awp_target_LOWZ_z0.2_0.4_err_3sigma_sim_subhaloes.npy'
+burnin_logProb_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMClklhd_burnin_'+str(burnin_it)+'it_'+str(nwalkers)+'wlk_'+str(A_n)+'An_'+str(A_wp)+'Awp_target_LOWZ_z0.2_0.4_err_3sigma_sim_subhaloes.npy'
+chain_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/MCMCpost_chains_HOD_'+str(M)+'_L'+str(Lbox)+'_'+str(prod_it)+'it_'+str(nwalkers)+'walkers_'+str(A_n)+'An_'+str(A_wp)+'Awp_target_LOWZ_z0.2_0.4_err_3sigma_sim_subhaloes.npy'
+logProb_file = '/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/MCMClklhd_chains_HOD_'+str(M)+'_L'+str(Lbox)+'_'+str(prod_it)+'it_'+str(nwalkers)+'walkers_'+str(A_n)+'An_'+str(A_wp)+'Awp_target_LOWZ_z0.2_0.4_err_3sigma_sim_subhaloes.npy'
 
 #create dictionary
 input_dict = {
     'Model':M,
     'Lbox': Lbox,
     'halo_file':halo_file,
-    'observable_wp': '/cosma7/data/dp004/dc-armi2/HOD_mocks/observables/clustering/wpdrp_L1536_GR_z0.3_rp_0.5_50_15rpbins_pimax_80_JKerrors.dat',
-    'observable_n': '/cosma7/data/dp004/dc-armi2/HOD_mocks/observables/number_density/n_L1536_GR_z0.3_JK_err.dat',
+    'observable_wp': '/cosma7/data/dp004/dc-armi2/Jackknife_runs/JK25_wp_logrp0.5_50_20bins_pimax80_z0.2_0.4.txt',
+    'observable_n': '/cosma7/data/dp004/dc-armi2/Jackknife_runs/JK25_numberDensity_z0.2_0.4.txt',
     'A_n': A_n,
     'A_wp': A_wp,
     'N_walkers':nwalkers,
