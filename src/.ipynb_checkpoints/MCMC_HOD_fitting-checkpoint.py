@@ -1,4 +1,5 @@
 import sys,os,time,h5py,yaml,emcee
+sys.path.append('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/src/')
 from mpi4py import MPI
 import numpy as np
 from hod import *
@@ -16,7 +17,7 @@ yaml_name = sys.argv[1]
 with open(yaml_name) as file:
     # The FullLoader parameter handles the conversion from YAML
     # scalar values to Python the dictionary format
-    input_dict = yaml.load(file)
+    input_dict = yaml.load(file,Loader=yaml.FullLoader)
 
 t= time.time()  
 M = input_dict['Model']
@@ -37,32 +38,17 @@ observable_n = input_dict['observable_n']
 #    print('this is it %d \n'%int(it))
 
 
-#============================= halo parent catalogue ========================================#
-#
-#Mhalo_min= 1e12#imposed arbitrarily. Consult your mass resol.
-#Mlimit = 10**13.92604
-#data_r = np.loadtxt(halo_file,usecols=(2,33,8,9,10,5,6))#columns from rockstar file
-#halo_weights_name = '/cosma7/data/dp004/dc-armi2/haloes/weights_haloes_test_GR_box1.dat'
-#if len(glob(halo_weights_name))  == 1:
-#    weights_haloes = np.loadtxt(halo_weights_name)
-#    haloes = data_r[(data_r[:,1]<0)&(data_r[:,0]>Mhalo_min)][:,(0,2,3,4,5,6)]
-#else:
-#    haloes = data_r[(data_r[:,1]<0)&(data_r[:,0]>Mhalo_min)][:,(0,2,3,4,5,6)]
-    #haloes = haloes[np.argsort(haloes[:,0])[::-1]]
-haloes_sim = h5py.File(halo_file,'r')
-haloes = haloes_sim['data']
-#    halo_mass = haloes[:,0]
-#    weights_haloes = np.ones_like(halo_mass)
-#    weights_haloes[halo_mass<Mlimit] = weight_function(halo_mass[halo_mass<Mlimit])
-#============================== observable function to fit ==================================#
-
-#theta_test = np.array([13.15,14.2,13.3,0.6,1.0])
-wp_data = np.loadtxt(observable_wp,usecols=(1,2))
-#wp_data = #np.array([wp_cols[:,1] / wp_cols[:,0],wp_cols[:,2]/wp_cols[:,0]]).T
+#================ halo parent catalogue ==================#
+haloes_table = h5py.File(halo_file,'r')
+wp_cols = np.loadtxt(observable_wp,usecols=(0,1,2))
+rp = wp_cols[:,0]
+wp_data = wp_cols[:,1]
+wp_err = wp_cols[:,2]#np.sqrt((wp_cols[:,2]**2 + (0.10*wp_cols[:,1])**2))
+wp_obs = np.array([rp,wp_data/rp,wp_err/rp]).T
 n_data = np.loadtxt(observable_n)
-n_data[1] = n_data[0]*0.03 #try with 5% number density error
-
-Y_data = (n_data,wp_data)
+n_data[1] = n_data[0]*0.05
+# additional error has been added, just for modelling
+Y_data = (n_data,wp_obs[:,(1,2)])#discard bins at the begining and at the end
 
 
 #name_datacube = '/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/datacube/datacube_run1.pkl'
@@ -74,16 +60,16 @@ def model(theta):
         n_sim = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/ns/ngal_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta))
         wp_true = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta))
     else:
-        G1 = HOD_mock(theta,haloes,Lbox=Lbox,weights_haloes=None)
+        G1 = HOD_mock_subhaloes(theta,haloes_table,Lbox=Lbox,weights_haloes=None)
         n_sim = np.sum(G1[:,4]) / (Lbox**3.)
-        wp_true = wp_from_box(G1,n_threads=16,Lbox = Lbox,Nsigma = 15)
-        #
+        wp_true = wp_from_box(G1,n_threads=16,Lbox = Lbox,Nsigma = 13)
+            #
         np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/params/HOD_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.par'%tuple(theta),theta)
         np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/ns/ngal_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta),np.array([n_sim]))
         np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta),wp_true)
         
-    n_model = np.array([n_sim,n_sim*0.05])#fix error at 1% 
-    wp_model = np.array([wp_true, wp_true*0.07]).T
+    n_model = np.array([n_sim,n_sim*0.05])#try 10-15% error for models number density
+    wp_model = np.array([wp_true, wp_true*0.05]).T
     
     return (n_model,wp_model)
     
@@ -101,34 +87,27 @@ def lnlike(theta,ydata=Y_data): #chi square test
 #                        [12.5,13.5],
 #                        [0.3,0.7],
 #                        [0.8,1.3]])
-mass_def_range = np.array([[12.5,13.5],
-                        [14.0,14.8],
-                        [12.5,14.5],
-                        [0.3,0.7],
-                        [0.8,1.2]])
+mass_def_range = np.array([[12.8,13.5],
+                        [13.5,14.5],
+                        [13.1,14.0],
+                        [0.1,0.5],
+                        [0.8,1.0]])
 
-ndim = len(mass_def_range)
-
+ndim=5
 #Initial state
 p0 = np.zeros((nwalkers,ndim))
 for i in range(nwalkers):
     p0[i,0] = np.random.uniform(mass_def_range[0,0],mass_def_range[0,1])
-    p0[i,2] = np.random.uniform(p0[i,0],mass_def_range[0,1])
-    p0[i,1] = np.random.uniform(p0[i,2],mass_def_range[1,1])
+    p0[i,1] = np.random.uniform(mass_def_range[1,0],mass_def_range[1,1])
+    p0[i,2] = np.random.uniform(mass_def_range[2,0],mass_def_range[2,1])
     p0[i,3] = np.random.uniform(mass_def_range[3,0],mass_def_range[3,1])
     p0[i,4] = np.random.uniform(mass_def_range[4,0],mass_def_range[4,1])
 
-#PR = np.array([[12.8,14],
-#             [13,15],
-#             [12.8,14.],
-#             [0.1,0.8],
-#             [0.7,1.4]])
-
-PR = np.array([[12.0,14.0],
-             [13.0,15.0],
-             [12.5,15.0],
-             [0.1,0.8],
-             [0.7,1.4]])
+PR = np.array([[12.5,14.5],
+             [13.5,14.5],
+             [13.0,14.5],
+             [0.0,0.9],
+             [0.7,1.5]])
 
     
 def lnprior(theta,prior_range=PR):
@@ -138,7 +117,7 @@ def lnprior(theta,prior_range=PR):
             b[p] = 1
     if theta[2] > theta[1]:
         b[2] = 0
-    elif theta[0] > theta[1]:
+    if theta[0] > theta[1]:
         b[0] = 0
     elif theta[0] > theta[2]:
         b[0] = 0
@@ -155,16 +134,9 @@ def lnprob(theta,ydata=Y_data):
         return -np.inf
     return lp + lnlike(theta,ydata)
     
-#p0 = [ np.random.uniform(low=p[0],high=p[1],size=nwalkers) for p in prior_range]
-#p0 = np.array(p0).T
-
-#filename = "/cosma7/data/dp004/dc-armi2/mcmc_runs/backends/mcmc_backend_stretch_lgprob_chain_"+str(nwalkers)+"wlk_"+str(burnin_it)+"burnin_"+str(prod_it)+"production_"+M+"_Box"+str(B)+".h5"
-#backend = emcee.backends.HDFBackend(filename)
-#backend.reset(nwalkers, ndim)
-
 def main(p0,nwalkers,niter,ndim,lnprob,data):
     #print('Running mcmc...\n')
-    st = np.array([0.15,0.15,0.15,0.05,0.05])/3#array with stepsize for the parameter space
+    st = np.array([0.02,0.02,0.02,0.02,0.02])/3#array with stepsize for the parameter space
     cov_vec =  st**2
     Cov = np.identity(ndim)*cov_vec
     with MPIPool() as pool:

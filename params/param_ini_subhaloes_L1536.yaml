@@ -1,0 +1,14 @@
+A_n: 0.5
+A_wp: 0.5
+Lbox: 1536
+Model: GR
+N_walkers: 56
+burnin_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMCpost_burnin_200it_56wlk_0.5An_0.5Awp_target_LOWZ_z0.2_0.4_err_3sigma_sim_subhaloes.npy
+burnin_iterations: 200
+burnin_logProb_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMClklhd_burnin_200it_56wlk_0.5An_0.5Awp_target_LOWZ_z0.2_0.4_err_3sigma_sim_subhaloes.npy
+chain_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/MCMCpost_chains_HOD_GR_L1536_400it_56walkers_0.5An_0.5Awp_target_LOWZ_z0.2_0.4_err_3sigma_sim_subhaloes.npy
+halo_file: /cosma7/data/dp004/dc-armi2/HOD_mocks/halo_catalogues/Haloes_MG-Gadget_GR_z0.3_L1536_ID_M200c_pos_R200_c200scatter_logMhalomin_11.2.hdf5
+logProb_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/MCMClklhd_chains_HOD_GR_L1536_400it_56walkers_0.5An_0.5Awp_target_LOWZ_z0.2_0.4_err_3sigma_sim_subhaloes.npy
+observable_n: /cosma7/data/dp004/dc-armi2/Jackknife_runs/JK25_numberDensity_z0.2_0.4.txt
+observable_wp: /cosma7/data/dp004/dc-armi2/Jackknife_runs/JK25_wp_logrp0.5_50_20bins_pimax80_z0.2_0.4.txt
+production_iterations: 400

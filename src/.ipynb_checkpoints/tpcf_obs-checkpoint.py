@@ -3,7 +3,7 @@ from glob import glob
 #from halotools.mock_observables import wp
 from Corrfunc.theory import wp
 
-def wp_from_box(G1,n_threads,Lbox,Nsigma):
+def wp_from_box(G1,n_threads,Lbox,Nsigma,return_rpavg=False):
     ## replace by real error estimation  #number of bins on rp log binned
     sini = 0.5
     sfini = 50.0
@@ -15,6 +15,8 @@ def wp_from_box(G1,n_threads,Lbox,Nsigma):
     rp = 10**s_l
     wp_obs = wp(boxsize=Lbox,binfile=sigma,X=G1[:,0],Y=G1[:,1],Z=G1[:,2],pimax=pimax,nthreads=n_threads,weights=G1[:,4],output_rpavg=True, weight_type='pair_product',xbin_refine_factor=2, ybin_refine_factor=2, zbin_refine_factor=1,max_cells_per_dim=100)
     wp_true = wp_obs['wp'] / wp_obs['rpavg']
-    
-    return wp_true
+    if return_rpavg:
+        return np.array([wp_obs['rpavg'],wp_true]).T
+    else:
+        return wp_true
 
