@@ -16,7 +16,6 @@ chains = np.load('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/chains/MCMCpost_
 samples = chains.reshape(chains.shape[0]*chains.shape[1],chains.shape[2])
 #burnin_samples = burnin.reshape(burnin.shape[0]*burnin.shape[1],burnin.shape[2])
 
-
 #prior_range = np.array([np.min(burnin_samples,axis=0),np.max(burnin_samples,axis=0)]).T
 prior_range = np.array([[12.5,13.5],
                         [13.0,14.6],
@@ -84,7 +83,7 @@ c_steps = np.arange(1000,5000,1)
 
 loop_color = np.random.random((20,3))
 
-lklhd_chains = np.load('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/MCMClklhd_chains_HOD_GR_L768_600it_56walkers_0.5An_0.5Awp_target_LOWZ_z0.2_0.4_err_23igma_sim_subhaloes.npy')
+lklhd_chains = np.load('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/likelihoods/MCMClklhd_chains_HOD_GR_L768_800it_56walkers_0.5An_0.5Awp_target_LOWZ_z0.2_0.4_err_23igma_sim_subhaloes.npy')
 lklhd_burnin = np.load('/cosma7/data/dp004/dc-armi2/mcmc_runs/outputs/burn_in/MCMClklhd_burnin_100it_20wlk_0.1An_0.9Awp_target_LOWZ_z0.2_0.4_err_2sigma.npy')
 
 lklhd_samples = lklhd_chains.flatten()
