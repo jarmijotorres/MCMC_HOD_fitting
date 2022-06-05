@@ -1,0 +1,16 @@
+A_n: 0.5
+A_wp: 0.5
+Lbox: 768
+Model: F5
+N_batches: 40
+N_walkers: 28
+chain_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/LOWZ_North_F5_An0.5_Awp0.5/chains/MCMCpost_chains_HOD_F5_L768_500it_28walkers_0.5An_0.5Awp_target_LOWZ_North_z0.24_0.36_err_1sigma_fullcov_sim_subhaloes
+cov_matrix: /cosma7/data/dp004/dc-armi2/HOD_mocks/observables/clustering/JK100_Cov_LOWZ_North_z0.24_0.36_logrp0.5_50_13bins.txt
+halo_file: /cosma7/data/dp004/dc-armi2/HOD_mocks/halo_catalogues/Haloes_MG-Gadget_F5_z0.3_L768_ID_M200c_R200c_pos_vel_Nsh_FirstSh_SubHaloList_SubHaloMass_SubHaloVel_logMmin_11.2.0.hdf5
+logProb_file: /cosma7/data/dp004/dc-armi2/mcmc_runs/LOWZ_North_F5_An0.5_Awp0.5/likelihoods/MCMClklhd_chains_HOD_F5_L768_500it_28walkers_0.5An_0.5Awp_target_LOWZ_North_z0.24_0.36_err_1sigma_fullcov_sim_subhaloes
+observable_n: /cosma7/data/dp004/dc-armi2/HOD_mocks/observables/number_density/JK100_LOWZ_North_ngal_z0.24_0.36.txt
+observable_wp: /cosma7/data/dp004/dc-armi2/HOD_mocks/observables/clustering/JK100_wp_galaxy_LOWZ_North_z0.24_0.36_RA_DEC_Z_weight_JK100.hdf5_logrp0.5_50_10bins_pimax80.txt
+prev_state: /cosma7/data/dp004/dc-armi2/mcmc_runs/LOWZ_North_F5_An0.5_Awp0.5/chains/MCMCpost_chains_HOD_F5_L768_500it_28walkers_0.5An_0.5Awp_target_LOWZ_North_z0.24_0.36_err_1sigma_fullcov_sim_subhaloes_batch_37.npy
+production_iterations: 500
+target: LOWZ_North
+z_snap: 0.3

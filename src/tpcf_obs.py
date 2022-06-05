@@ -15,7 +15,14 @@ def dcomov(z):
     '''
     return (cosmo.comoving_distance(z)*cosmo.h).value
 
-def wp_from_box(G1,n_threads,Lbox,Nsigma,return_rpavg=False):
+def wp_from_box(G1,n_threads,Lbox,Nsigma,z_snap,return_rpavg=False):
+    Om0 = cosmo.Om0
+    Ol0 = 1 - cosmo.Om0
+    #z_snap = 0.3
+
+    Hz = 100.0*np.sqrt(Om0*(1.0+z_snap)**3 + Ol0)
+    Hz_i = (1+z_snap)/Hz
+    
     ## replace by real error estimation  #number of bins on rp log binned
     sini = 0.5
     sfini = 50.0
@@ -25,93 +32,58 @@ def wp_from_box(G1,n_threads,Lbox,Nsigma,return_rpavg=False):
     dpi = np.diff(pi)[0]
     s_l = np.log10(sigma[:-1]) + np.diff(np.log10(sigma))[0]/2.
     rp = 10**s_l
-    wp_obs = wp(boxsize=Lbox,binfile=sigma,X=G1[:,0],Y=G1[:,1],Z=G1[:,2],pimax=pimax,nthreads=n_threads,weights=G1[:,4],output_rpavg=True, weight_type='pair_product',xbin_refine_factor=2, ybin_refine_factor=2, zbin_refine_factor=1,max_cells_per_dim=100)
+    
+    #move z-coordinate to redshift space
+    
+    vz = G1[:,5]
+    z_obs = G1[:,2] + vz*Hz_i
+    z_obs[z_obs < 0] += Lbox
+    z_obs[z_obs > Lbox] -= Lbox
+    
+    wp_obs = wp(boxsize=Lbox,binfile=sigma,X=G1[:,0],Y=G1[:,1],Z=z_obs,pimax=pimax,nthreads=n_threads,weights=None,output_rpavg=True, weight_type=None,xbin_refine_factor=2, ybin_refine_factor=2, zbin_refine_factor=1,max_cells_per_dim=100)
     wp_true = wp_obs['wp'] / wp_obs['rpavg']
     if return_rpavg:
         return np.array([wp_obs['rpavg'],wp_true]).T
     else:
         return wp_true
 
-def box_to_lightcone(G1,zf):
-    G1_BB = []
-    for i in [-1,0,1]:
-        for j in [-1,0,1]:
-            for k in [-1,0,1]:
-                G1_BB.append(G1[:,(0,1,2,3,5)]+np.array([i,j,k,0,0])*768.0)
-    G1_BB = np.concatenate(G1_BB,axis=0)
-
-    p0 = np.concatenate((np.mean(G1[:,(0,1,2)],axis=0),[0.0,0.0]))
-    observer_frame = G1_BB - p0
-    del G1_BB
-
-    nn_tree = cKDTree(observer_frame[:,(0,1,2)])
-    origin = np.array([0.0,0.0,0.0])
-    #ri = dcomov(zi)
-    rf = dcomov(zf)
-    #lc_z02 = nn_tree.query_ball_point(x=origin,r=ri,)
-    lc_z = nn_tree.query_ball_point(x=origin,r=rf,)
-
-    #LC_M = observer_frame[lc_z02]
-    LC_L = observer_frame[lc_z]
-
-    c = SkyCoord(x=LC_L[:,0], y=LC_L[:,1], z=LC_L[:,2], unit='Mpc', representation_type='cartesian')
-    c.representation_type = 'spherical'
-
-    #phi = c.ra.value[(c.distance.value > 100)&(c.distance.value < 150)]
-    #theta = c.dec.value[(c.distance.value > 100)&(c.distance.value < 150)]
-
-    RA = c.ra.value#to(u.radian).value#[(c.dec.value > 0)&(c.dec.value < 5)]
-    DEC = c.dec.value#
-    r = c.distance.value#[(c.dec.value > 0)&(c.dec.value < 5)]
-    LC_data = np.array([RA,DEC,r]).T
-
-    return LC_data
-
-def masking_LC(LC,mask_IDs,zi = 0.2,zf = 0.4):
-
-    NSIDE=1024
-    ranmask = np.zeros(12*NSIDE**2)
-    ranmask[mask_IDs.astype(int)] = 1.
+def MCF_from_tpcf(xi2d_m,xi2d_um):
+    xi1 = xi2d_m['full_result/xi']
+    xi2 = xi2d_um['full_result/xi']
+    rp = xi2d_m['full_result/Axis_1_bin_centre'][:]
+    drp = xi2d_m['full_result/Axis_1_bin_width'][:]
+    pi = xi2d_m['full_result/Axis_2_bin_centre'][:]
+    dpi = xi2d_m['full_result/Axis_2_bin_width'][:]
+    dlogpi = np.diff(np.log(dpi))
+    wp_full_w = np.sum(xi1[:]*pi,axis=1)*dlogpi[0]
+    wp_full_uw = np.sum(xi2[:]*pi,axis=1)*dlogpi[0]
     
-    LC_chunk = LC[(LC[:,2]>=dcomov(zi))&(LC[:,2]<=dcomov(zf))]
-    
-    alpha = np.radians(LC_chunk[:,0])
-    delta = np.radians(LC_chunk[:,1]) + np.pi/2.
+    MCF = (1 + (wp_full_w/rp))/(1+(wp_full_uw/rp))
+    return MCF#np.array([rp,MCF]).T
 
-    is_p = hp.ang2pix(NSIDE, theta=delta, phi=alpha, nest=True)
-    
-    mask_points = ranmask[is_p]==1.0
-    masked_LC = LC_chunk[mask_points]
-    return masked_LC
 
-def wp_from_LC(C0,randoms,RR_pairs,n_threads,Nsigma):
-    R0 = randoms['data']
-    sini = 0.5
-    sfini = 50.0
-    sigma = np.logspace(np.log10(sini),np.log10(sfini),Nsigma+1)
-    pimax = 80
-    Npi = 80
-    pi = np.linspace(0,pimax,pimax+1)
-    dpi = np.diff(pi)[0]
-    s_l = np.log10(sigma[:-1]) + np.diff(np.log10(sigma))[0]/2.
-    rp = 10**s_l
+def MCF_JK_from_tpcf(xi2d_m,xi2d_um,NJK):
+    rp = xi2d_m['full_result/Axis_1_bin_centre'][:]
+    drp = xi2d_m['full_result/Axis_1_bin_width'][:]
+    pi = xi2d_m['full_result/Axis_2_bin_centre'][:]
+    dpi = xi2d_m['full_result/Axis_2_bin_width'][:]
+    dlogpi = np.diff(np.log(dpi))
+    MCFs_JK = []
+    for i in range(NJK):
+        xi1 = xi2d_m['jk_reg%d/xi'%i]
+        xi2 = xi2d_um['jk_reg%d/xi'%i]
+        wp_full_w = np.sum(xi1[:]*pi,axis=1)*dlogpi[0]
+        wp_full_uw = np.sum(xi2[:]*pi,axis=1)*dlogpi[0]
+        MCF_JK = (1 + (wp_full_w/rp))/(1+(wp_full_uw/rp))
+        MCFs_JK.append(MCF_JK)
+    MCF_mean = np.mean(MCFs_JK,axis=0)
+    Nrp = len(rp)
+    C_ = np.zeros((Nrp,Nrp))
+    for i in range(len(C_)):
+        for j in range(len(C_)):
+            for k in range(NJK):
+                C_[i][j] += (NJK-1)/float(NJK)*(MCFs_JK[k][i] - MCF_mean[i])*(MCFs_JK[k][j] - MCF_mean[j])
+    MCF_err = np.sqrt(C_.diagonal())
     
-    D1D2_est = DDrppi_mocks(autocorr=True,cosmology=2,nthreads=n_threads,pimax=pimax,binfile=sigma,RA1=C0[:,0],DEC1=C0[:,1],CZ1=C0[:,2],weights1=np.ones_like(C0[:,2]),is_comoving_dist=True,weight_type='pair_product')
-    
-    D1R2_est = DDrppi_mocks(autocorr=False,cosmology=2,nthreads=n_threads,pimax=80,binfile=sigma,RA1=C0[:,0],DEC1=C0[:,1],CZ1=C0[:,2],weights1=np.ones_like(C0[:,0]),RA2=R0['RA'],DEC2=R0['DEC'],CZ2=R0['comoving_distance'],weights2=R0['weight'],is_comoving_dist=True,weight_type='pair_product')
-    
-    NRC = len(R0)/len(C0)
-    D1D2 = D1D2_est['npairs']
-    D1R2 = D1R2_est['npairs'] / NRC
-    R1R2 = RR_pairs['npairs'] / (NRC*NRC)
-    xi2D = (D1D2 - D1R2 - D1R2 + R1R2)/R1R2
-    xi_pi_sigma = np.zeros((Npi,Nsigma))
-    for j in range(Nsigma):
-        for i in range(Npi):
-            xi_pi_sigma[i,j] = xi2D[i+j*Npi]
-            
-    
-    wp_LC = 2*np.sum(xi_pi_sigma,axis=0)
-    wp_rp = wp_LC/rp
-    
-    return wp_rp
+    S = np.array([rp,MCF_mean,MCF_err]).T
+    return S,C_

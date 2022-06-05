@@ -1,62 +1,51 @@
 import numpy as np
-import multiprocessing
-import time,h5py, yaml,sys
+import time,h5py,sys
 from glob import glob
-#from hod_GR import HOD_mock
-#from chi2 import chi_wp
-#from tpcf_obs import wp_from_box
+sys.path.append('/cosma/home/dp004/dc-armi2/pywrap_HOD_fitting/src/')
+from hod import *
+from tpcf_obs import *
+from chi2 import *
 
-#yaml_name = sys.argv[1]
-#with open(yaml_name) as file:
-    # The FullLoader parameter handles the conversion from YAML
-    # scalar values to Python the dictionary format
-    #input_dict = yaml.load(file)
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
-t= time.time()
-#M = input_dict['Model']
-#B = input_dict['Box']
-#A_n = input_dict['A_n']
-#A_wp = input_dict['A_wp']
-#nwalkers = input_dict['N_walkers']
-#burnin_it = input_dict['burnin_iterations']
-#prod_it = input_dict['production_iterations']
-#burnin_file = input_dict['burnin_file']
-chain_file = sys.argv[1]#input_dict['chain_file']
-#logProb_file = input_dict['logProb_file']
-#halo_file = input_dict['halo_file']
-#observable_wp = input_dict['observable_wp'] 
-#observable_n = input_dict['observable_n']
+Mod='GR'
+Lbox = 768
+haloes_table = h5py.File('/cosma7/data/dp004/dc-armi2/HOD_mocks/halo_catalogues/Haloes_MG-Gadget_'+Mod+'_z0.3_L%d_ID_M200c_R200c_pos_Nsh_FirstSh_SubHaloList_SubHaloMass_logMmin_11.2.0.hdf5'%Lbox,'r')
 
-#wp_obs = np.loadtxt(observable_wp)
-#data_r = np.loadtxt(halo_file,usecols=(2,33,8,9,10,5,6))
+haloes = np.array(haloes_table['MainHaloes'])
+subhaloes = np.array(haloes_table['SubHaloes'])
+
+chain_file = sys.argv[1]
+chain_name = chain_file.split('/')[-1].split('.npy')[0]
+Nsigma = 13
 
 def compute_n_wp(theta):
-    name_par = '/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/params/HOD_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.par'%tuple(theta)
-    if len(glob(name_par)) == 1:
-        n_sim = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/ns/ngal_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta))
-        wp_true = np.loadtxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta))
-    else:
-        G1_data = HOD_mock(theta,data_r)
-        n_sim = len(G1_data) / (1024.**3.)
-        wp_true = wp_from_box(G1_data[:,(0,1,2)],n_threads=1,Lbox = 1024.,Nsigma = 25)
-        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/params/HOD_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.par'%tuple(theta),theta)
-        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/ns/ngal_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta),np.array([n_sim]))
-        np.savetxt('/cosma7/data/dp004/dc-armi2/mcmc_runs/temps/wps/wp_%.5lf_%.5lf_%.5lf_%.5lf_%.5lf.txt'%tuple(theta),wp_true)
-        
-    wp_model = np.array([wp_true, wp_true*0.01]).T
-    #chi2wp = chi_wp(wp_model,wp_obs)
-        
-    return n_sim
+    G1 = HOD_mock_subhaloes(theta,haloes=haloes,subhaloes=subhaloes,Lbox=Lbox,weights_haloes=None)
+    n_sim = len(G1) / (Lbox**3.)
+    wp_sim = wp_from_box(G1,n_threads=28,Lbox = Lbox,Nsigma = Nsigma)
+
+    return n_sim,wp_sim
 
 chain_walkers = np.load(chain_file)
-samples_1D = chain_walkers.reshape((chain_walkers.shape[0]*chain_walkers.shape[1],chain_walkers.shape[2]))
+samples_1D = chain_walkers[rank]
+ns = np.zeros(len(samples_1D))
+wps = np.zeros((len(samples_1D),Nsigma))
+for i in range(len(samples_1D)):
+    nmod,wpmod = compute_n_wp(samples_1D[i])
+    ns[i] = nmod
+    wps[i] = wpmod
 
-pool = multiprocessing.Pool(processes=28)
-Fn_wp = np.zeros((len(samples_1D)))
-Fn_wp[:] = pool.map(compute_n_wp,samples_1D)
-pool.close() 
-pool.join()
-#Fnwp_rs = Fn_wp.reshape((chain_walkers.shape[0],chain_walkers.shape[1],2))
-np.save('/cosma7/data/dp004/dc-armi2/mcmc_runs/ngal_hist.npy',Fn_wp)
-#print('done')
-#print(F[:10])
+comm.barrier()
+n_all = comm.gather(ns,root=0)
+wp_all = comm.gather(wps,root=0)
+
+out_dir = '/cosma7/data/dp004/dc-armi2/mcmc_runs/GR_An0.5_Awp0.5/'
+
+if rank == 0:
+    n_all = np.array(n_all)
+    wp_all = np.array(wp_all)
+    np.save(out_dir+'ngal/'+chain_name+'test_ngal.npy',n_all)
+    np.save(out_dir+'wp/'+chain_name+'test_wp.npy',wp_all)

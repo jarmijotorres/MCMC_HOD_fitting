@@ -129,8 +129,8 @@ def HOD_mock(theta,haloes,Lbox,weights_haloes=None):
     mock.append(haloes_cen)
     mock_cat = np.concatenate(mock)# array containing the catalogue
     return mock_cat
-    
-def HOD_mock_subhaloes(theta,haloes_table,Lbox,weights_haloes=None):
+
+def HOD_mock_subhaloes(theta,haloes,subhaloes,Lbox,weights_haloes=None):
     """
     Method to create a mock catalogue from a halo parent catalogue and a set of parameters.
     parameters:
@@ -140,8 +140,7 @@ def HOD_mock_subhaloes(theta,haloes_table,Lbox,weights_haloes=None):
         mock_cat: catalogue of HOD galaxies including position and host halo mass.
     """
 
-    haloes = np.array(haloes_table['MainHaloes'])
-    subhaloes = np.array(haloes_table['SubHaloes'])
+
     logMmin, logM1, logM0, sigma, alpha = theta #unpack parameters
     
         
@@ -157,7 +156,7 @@ def HOD_mock_subhaloes(theta,haloes_table,Lbox,weights_haloes=None):
         b2 = Ncen >=r1
         New_haloes = haloes[b2]
         weights_haloes = weights_haloes[b2]
-        haloes_cen = np.array([New_haloes['pos'][:,0],New_haloes['pos'][:,1],New_haloes['pos'][:,2],New_haloes['M200c'],weights_haloes,np.full(len(New_haloes),1.0)]).T
+        haloes_cen = np.array([New_haloes['pos'][:,0],New_haloes['pos'][:,1],New_haloes['pos'][:,2],New_haloes['vel'][:,0],New_haloes['vel'][:,1],New_haloes['vel'][:,2],New_haloes['M200c'],weights_haloes,np.full(len(New_haloes),1.0)]).T
         return haloes_cen
     
     Nsat = np.zeros_like(Ncen)
@@ -181,16 +180,20 @@ def HOD_mock_subhaloes(theta,haloes_table,Lbox,weights_haloes=None):
     Msh_min = 10**(12.0)
     for i,hi in enumerate(halo_with_sat):
         sh_hi = subhaloes['pos'][hi['FirstSh']:hi['FirstSh']+hi['Nsh']]
+        sh_vel_hi = subhaloes['vel'][hi['FirstSh']:hi['FirstSh']+hi['Nsh']]
         mass_sh_hi = subhaloes['M200c'][hi['FirstSh']:hi['FirstSh']+hi['Nsh']]
         pos_sh = sh_hi[mass_sh_hi>Msh_min][1:]
-        np.random.shuffle(pos_sh)
+        vel_sh = sh_vel_hi[mass_sh_hi>Msh_min][1:]
+        pos_vel_sh =  np.hstack((pos_sh,vel_sh))
+        np.random.shuffle(pos_vel_sh)
         Nsubh = len(pos_sh)
         if Nsubh >= Nsat_perhalo[i]:
-            pos_satellites = pos_sh[:Nsat_perhalo[i]]
+            pos_vel_satellites = pos_vel_sh[:Nsat_perhalo[i]]
         else:
             IDs_sats = np.random.randint(0,high=len(pos_sh),size=Nsubh)
-            pos_satellites = pos_sh[IDs_sats]
-        xyz_censat = np.vstack([hi['pos'],pos_satellites])
+            pos_vel_satellites = pos_vel_sh[IDs_sats]
+        pos_vel_central = np.hstack((hi['pos'],hi['vel']))
+        xyz_censat = np.vstack([pos_vel_central,pos_vel_satellites])
         mass = np.full(len(xyz_censat),hi['M200c'])
         w_halo = np.full(len(xyz_censat),weights_hsat[i])#hi[6] is the weight
         id_cen_sat = np.full_like(mass,-1)
@@ -200,7 +203,7 @@ def HOD_mock_subhaloes(theta,haloes_table,Lbox,weights_haloes=None):
         
     b5 = (is_cen == 1)&(~b4)#boolean 5: all haloes frome above - haloes with satellites
     New_haloes = haloes[b5]
-    haloes_cen = np.vstack([New_haloes['pos'][:,0],New_haloes['pos'][:,1],New_haloes['pos'][:,2],New_haloes['M200c'],weights_haloes[b5],np.full(len(weights_haloes[b5]),1.0)]).T
+    haloes_cen = np.vstack([New_haloes['pos'][:,0],New_haloes['pos'][:,1],New_haloes['pos'][:,2],New_haloes['vel'][:,0],New_haloes['vel'][:,1],New_haloes['vel'][:,2],New_haloes['M200c'],weights_haloes[b5],np.full(len(weights_haloes[b5]),1.0)]).T
     mock.append(haloes_cen)
     mock_cat = np.concatenate(mock)# array containing the catalogue
     return mock_cat
