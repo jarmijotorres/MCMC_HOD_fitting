@@ -77,7 +77,7 @@ PR = np.array([[12.7,14.0],
              [12.7,14.8],
              [12.7,14.0],
              [0.0,0.6],
-             [0.4,1.6]])
+             [0.7,1.6]])
 
 def lnprior(theta,prior_range=PR):
     b=np.zeros_like(theta,dtype=bool)
@@ -115,12 +115,12 @@ def lnprob(theta,ydata=Y_data):
 def main(cycle,p0,nwalkers,niter,ndim,lnprob,Y_data):
     batch_cycle = cycle%10
     #print('Running mcmc...\n')
-    if batch_cycle < 2:
-        step = np.array([0.03,0.03,0.03,0.03,0.03])/3.
-    elif (batch_cycle < 5) and (batch_cycle >= 2):
-        step = np.array([0.02,0.02,0.02,0.02,0.02])/3.
-    else:
-        step = np.array([0.01,0.01,0.01,0.01,0.01])/3.
+    #if batch_cycle < 2:
+    #    step = np.array([0.03,0.03,0.03,0.03,0.03])/3.
+    #elif (batch_cycle < 5) and (batch_cycle >= 2):
+    #    step = np.array([0.02,0.02,0.02,0.02,0.02])/3.
+    #else:
+    step = np.array([0.01,0.01,0.01,0.01,0.01])/3.
         
     cov_vec =  step**2
     Cov = np.identity(ndim)*cov_vec
@@ -146,11 +146,11 @@ def main(cycle,p0,nwalkers,niter,ndim,lnprob,Y_data):
     return sampler, pos, prob, state
 
 #=================== Run main function ==========================#
-mass_def_range = np.array([[12.9,13.3],
-                        [13.6,14.6],
-                        [13.1,13.4],
-                        [0.0,0.5],
-                        [0.6,1.1]])
+mass_def_range = np.array([[12.8,13.2],
+                        [13.8,14.2],
+                        [13.0,13.4],
+                        [0.0,0.2],
+                        [0.9,1.2]])
 
 ndim=5
 #Initial state
